@@ -1,0 +1,21 @@
+# ninja log v5
+0	20	1688308229391363646	fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-mkdir	f5b5cf1fcd5f8ed9
+0	20	1688308229391363646	/home/theo/Documents/CPP/vk_engine/cmake-build-debug/_deps/fetch_vk_bootstrap-subbuild/fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-mkdir	f5b5cf1fcd5f8ed9
+0	2498	1688308266911157759	fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-download	8165ec4806ed0b3c
+0	2498	1688308266911157759	/home/theo/Documents/CPP/vk_engine/cmake-build-debug/_deps/fetch_vk_bootstrap-subbuild/fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-download	8165ec4806ed0b3c
+2498	2513	0	fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-update	3aeddeebddc4a7ad
+2498	2513	0	/home/theo/Documents/CPP/vk_engine/cmake-build-debug/_deps/fetch_vk_bootstrap-subbuild/fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-update	3aeddeebddc4a7ad
+2513	2528	1688308266941157594	fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-patch	dc7f7a3896ed1a52
+2513	2528	1688308266941157594	/home/theo/Documents/CPP/vk_engine/cmake-build-debug/_deps/fetch_vk_bootstrap-subbuild/fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-patch	dc7f7a3896ed1a52
+2528	2542	1688308266957824169	fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-configure	e79e7747eee3149b
+2528	2542	1688308266957824169	/home/theo/Documents/CPP/vk_engine/cmake-build-debug/_deps/fetch_vk_bootstrap-subbuild/fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-configure	e79e7747eee3149b
+2542	2557	1688308266971157429	fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-build	ada5bc72192827f
+2542	2557	1688308266971157429	/home/theo/Documents/CPP/vk_engine/cmake-build-debug/_deps/fetch_vk_bootstrap-subbuild/fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-build	ada5bc72192827f
+2558	2573	1688308266987824004	fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-install	a3ea95d5665aa1e8
+2558	2573	1688308266987824004	/home/theo/Documents/CPP/vk_engine/cmake-build-debug/_deps/fetch_vk_bootstrap-subbuild/fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-install	a3ea95d5665aa1e8
+2573	2588	1688308267004490580	fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-test	ca554e808b17a370
+2573	2588	1688308267004490580	/home/theo/Documents/CPP/vk_engine/cmake-build-debug/_deps/fetch_vk_bootstrap-subbuild/fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-test	ca554e808b17a370
+2588	2611	1688308267027823785	CMakeFiles/fetch_vk_bootstrap-populate-complete	9c03bcd4cf47b44c
+2588	2611	1688308267027823785	fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-done	9c03bcd4cf47b44c
+2588	2611	1688308267027823785	/home/theo/Documents/CPP/vk_engine/cmake-build-debug/_deps/fetch_vk_bootstrap-subbuild/CMakeFiles/fetch_vk_bootstrap-populate-complete	9c03bcd4cf47b44c
+2588	2611	1688308267027823785	/home/theo/Documents/CPP/vk_engine/cmake-build-debug/_deps/fetch_vk_bootstrap-subbuild/fetch_vk_bootstrap-populate-prefix/src/fetch_vk_bootstrap-populate-stamp/fetch_vk_bootstrap-populate-done	9c03bcd4cf47b44c
