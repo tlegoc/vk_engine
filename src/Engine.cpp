@@ -5,6 +5,7 @@
 #include <Engine.h>
 
 #include <Initializers.h>
+#include <Helpers.h>
 
 #include <iostream>
 
@@ -91,6 +92,12 @@ void Engine::init_vulkan() {
             .require_api_version(1, 3, 0)
             .use_default_debug_messenger();
 
+    std::cout << "Available extensions:" << std::endl;
+
+    for (auto ext : Helpers::get_supported_extensions()) {
+        std::cout << "\t" << ext << std::endl;
+    }
+
     uint32_t glfw_extensions_count;
     const char** extensions = glfwGetRequiredInstanceExtensions(&glfw_extensions_count);
 
@@ -98,6 +105,9 @@ void Engine::init_vulkan() {
         std::cout << "Enabling extension: " << extensions[i] << std::endl;
         builder.enable_extension(extensions[i]);
     }
+
+    std::cout << "Enabling extension: VK_KHR_dynamic_rendering" << std::endl;
+    builder.enable_extension("VK_KHR_dynamic_rendering");
 
     auto inst_result = builder.build();
 
