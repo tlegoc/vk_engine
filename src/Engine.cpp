@@ -15,7 +15,7 @@ using namespace std;
         VkResult err = x;                                               \
         if (err)                                                        \
         {                                                               \
-            std::cout <<"Detected Vulkan error: " << err << std::endl;  \
+            std::cout << "Detected Vulkan error: " << err << std::endl; \
             abort();                                                    \
         }                                                               \
         }
@@ -23,6 +23,9 @@ using namespace std;
 void Engine::init() {
 
     init_glfw();
+#ifndef NDEBUG
+    print_system_info();
+#endif
     init_vulkan();
     init_swapchain();
 
@@ -42,7 +45,7 @@ void Engine::draw() {
 
 }
 
-// Small helper, this will be used once, and only here
+// Small helper, this will be used once, and only here so no need to put it somewhere else
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr) {
@@ -59,7 +62,6 @@ void Engine::cleanup() {
 
         vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 
-        //destroy swapchain resources
         for (int i = 0; i < m_swapchain_images_view.size(); i++) {
 
             vkDestroyImageView(m_device, m_swapchain_images_view[i], nullptr);
@@ -74,6 +76,28 @@ void Engine::cleanup() {
     }
 }
 
+void Engine::print_system_info() {
+    std::cout << "------ System info:" << std::endl;
+    auto system_info_ret = vkb::SystemInfo::get_system_info();
+    if (!system_info_ret) {
+        std::cout << system_info_ret.error().message() << std::endl;
+        abort();
+    }
+    auto system_info = system_info_ret.value();
+
+    std::cout << "Available layers:" << std::endl;
+
+    for (auto ext : system_info.available_layers) {
+        std::cout << "\t" << ext.layerName << std::endl;
+    }
+
+    std::cout << "Available extensions:" << std::endl;
+
+    for (auto ext : system_info.available_extensions) {
+        std::cout << "\t" << ext.extensionName << std::endl;
+    }
+    std::cout << "------" << std::endl;
+}
 
 void Engine::init_glfw() {
     glfwInit();
@@ -85,47 +109,60 @@ void Engine::init_glfw() {
 }
 
 void Engine::init_vulkan() {
+#ifndef NDEBUG
+    std::cout << "Building instance..." << std::endl;
+#endif
     vkb::InstanceBuilder builder;
 
     builder.set_app_name("VulkanEngine")
+#ifndef NDEBUG
             .request_validation_layers(true)
-            .require_api_version(1, 3, 0)
-            .use_default_debug_messenger();
-
-    std::cout << "Available extensions:" << std::endl;
-
-    for (auto ext : Helpers::get_supported_extensions()) {
-        std::cout << "\t" << ext << std::endl;
-    }
+            .use_default_debug_messenger()
+#endif
+            .set_engine_name("VulkanEngine")
+            .require_api_version(1, 3, 0);
 
     uint32_t glfw_extensions_count;
     const char** extensions = glfwGetRequiredInstanceExtensions(&glfw_extensions_count);
 
     for (int i = 0; i < glfw_extensions_count; i++) {
-        std::cout << "Enabling extension: " << extensions[i] << std::endl;
-        builder.enable_extension(extensions[i]);
+        //builder.enable_extension(extensions[i]);
     }
 
-    std::cout << "Enabling extension: VK_KHR_dynamic_rendering" << std::endl;
-    builder.enable_extension("VK_KHR_dynamic_rendering");
+    //builder.enable_extension("VK_KHR_dynamic_rendering");
 
-    auto inst_result = builder.build();
+    m_vkb_instance = builder.build().value();
+    m_instance = m_vkb_instance.instance;
+    m_debug_messenger = m_vkb_instance.debug_messenger;
 
-    vkb::Instance vkb_inst = inst_result.value();
-
-    m_instance = vkb_inst.instance;
-
-    m_debug_messenger = vkb_inst.debug_messenger;
+#ifndef NDEBUG
+    std::cout << "Done." << std::endl;
+    std::cout << "Creating surface..." << std::endl;
+#endif
 
     glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface);
 
-    vkb::PhysicalDeviceSelector selector{vkb_inst};
-    m_vkb_physical_device = selector
-            .set_minimum_version(1, 3)
-            .set_surface(m_surface)
-            .select()
-            .value();
+#ifndef NDEBUG
+    std::cout << "Done." << std::endl;
+    std::cout << "Selecting physical device..." << std::endl;
+#endif
 
+    vkb::PhysicalDeviceSelector selector{m_vkb_instance};
+    selector.set_minimum_version(1, 3)
+            .set_surface(m_surface);
+
+    for (int i = 0; i < glfw_extensions_count; i++) {
+        //selector.add_required_extension(extensions[i]);
+    }
+
+    //selector.add_required_extension("VK_KHR_dynamic_rendering");
+
+    m_vkb_physical_device = selector.select().value();
+
+#ifndef NDEBUG
+    std::cout << "Done." << std::endl;
+    std::cout << "Building device..." << std::endl;
+#endif
 
     vkb::DeviceBuilder device_builder{m_vkb_physical_device};
 
@@ -136,6 +173,11 @@ void Engine::init_vulkan() {
 
     m_graphics_queue = m_vkb_device.get_queue(vkb::QueueType::graphics).value();
     m_graphics_queue_family = m_vkb_device.get_queue_index(vkb::QueueType::graphics).value();
+
+#ifndef NDEBUG
+    std::cout << "Done." << std::endl;
+    std::cout << "Vulkan initialization finished." << std::endl;
+#endif
 }
 
 void Engine::init_swapchain() {

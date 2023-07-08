@@ -7,7 +7,7 @@
 
 #include <Types.h>
 #include <GLFW/glfw3.h>
-#include "VkBootstrap.h"
+#include <VkBootstrap.h>
 
 #include <vector>
 
@@ -26,20 +26,22 @@ public:
     void run();
     void draw();
     void cleanup();
+    static void print_system_info();
+
+    vkb::Instance m_vkb_instance;
+    vkb::PhysicalDevice m_vkb_physical_device;
+    vkb::Device m_vkb_device;
+    vkb::Swapchain m_vkb_swapchain;
 
     VkInstance m_instance;
     VkDebugUtilsMessengerEXT m_debug_messenger;
 
-    vkb::Device m_vkb_device;
-    vkb::PhysicalDevice m_vkb_physical_device;
     VkPhysicalDevice m_physical_device;
     VkDevice m_device;
 
-    vkb::Swapchain m_vkb_swapchain;
-    VkSurfaceKHR m_surface;
     VkSwapchainKHR m_swapchain;
     VkFormat m_swapchain_image_format;
-
+    VkSurfaceKHR m_surface;
     std::vector<VkImage> m_swapchain_images;
     std::vector<VkImageView> m_swapchain_images_view;
 

@@ -10,7 +10,6 @@
 
 namespace Helpers {
 
-    std::set<std::string> get_supported_extensions();
 };
 
 
