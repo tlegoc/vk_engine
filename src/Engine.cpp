@@ -7,6 +7,7 @@
 #include <Initializers.h>
 
 #include <iostream>
+#include <fstream>
 #include <glm/glm.hpp>
 
 using namespace std;
@@ -43,21 +44,19 @@ void Engine::run() {
 }
 
 void Engine::draw() {
-    // Wait for render fence
     VK_CHECK(vkWaitForFences(m_device, 1, &m_render_fence, true, 1000000000))
     VK_CHECK(vkResetFences(m_device, 1, &m_render_fence))
 
+    // Used in debug
     float flash = abs(sin(m_frame_count / 120.f));
 
-    // Will call present semaphore.
+    // Will call present semaphore when done.
     uint32_t swapchain_image_index;
     VK_CHECK(vkAcquireNextImageKHR(m_device, m_swapchain, 1000000000, m_present_semaphore, nullptr, &swapchain_image_index))
 
     VK_CHECK(vkResetCommandBuffer(m_main_command_buffer, 0))
 
     // Buffer will be used once so we recreate it when we draw
-    // In the long run we will have one secondary buffer we record once and update on map load that will be used
-    // to render static elements.
     VkCommandBufferBeginInfo command_buffer_begin_info = {};
     command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     command_buffer_begin_info.pNext = nullptr;
@@ -94,7 +93,9 @@ void Engine::draw() {
             &image_memory_barrier // pImageMemoryBarriers
     );
 
-
+    // Create as many color attachment as needed.
+    // You can specify the layout, the image view (if use outside of a swapchain)
+    // clear value and so on.
     const VkRenderingAttachmentInfo color_attachment_info {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
             .imageView = m_swapchain_images_view[swapchain_image_index],
@@ -106,6 +107,9 @@ void Engine::draw() {
             },
     };
 
+    // Don't forget to include all color attachment.
+    // You can select the desired output image in your shader by doing
+    // layout(location = COLOR_ATTACHMENT INDEX) vecX variable_name;
     const VkRenderingInfo render_info {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
             .renderArea = {0, 0, m_window_extent},
@@ -114,6 +118,9 @@ void Engine::draw() {
             .pColorAttachments = &color_attachment_info,
     };
 
+    // We make use of dynamic_rendering. This allows us to forget about renderpasses and
+    // framebuffers completely. We can specify render attachments on the struct
+    // above
     vkCmdBeginRendering(m_main_command_buffer, &render_info);
 
     // Draw calls
@@ -162,7 +169,6 @@ void Engine::draw() {
 
     submit.waitSemaphoreCount = 1;
     submit.pWaitSemaphores = &m_present_semaphore;
-
     submit.signalSemaphoreCount = 1;
     submit.pSignalSemaphores = &m_render_semaphore;
 
@@ -189,7 +195,8 @@ void Engine::draw() {
 
     m_frame_count++;
 
-    glfwSetWindowTitle(m_window, to_string(m_frame_count).c_str());
+    // Info
+    glfwSetWindowTitle(m_window, ("VulkanEngine - Frame count: " + to_string(m_frame_count)).c_str());
 }
 
 // Small helper, this will be used once, and only here so no need to put it somewhere else
@@ -226,6 +233,40 @@ void Engine::cleanup() {
 
         glfwDestroyWindow(m_window);
     }
+}
+
+bool Engine::load_shader_module(const char *file_path, VkShaderModule *out_shader_module) {
+    std::ifstream file(file_path, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+        return false;
+    }
+
+    size_t file_size = (size_t)file.tellg();
+
+    std::vector<uint32_t> buffer(file_size / sizeof(uint32_t));
+
+    file.seekg(0);
+    file.read((char*)buffer.data(), file_size);
+
+    file.close();
+
+    VkShaderModuleCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.pNext = nullptr;
+
+    // Size in bytes
+    create_info.codeSize = buffer.size() * sizeof(uint32_t);
+    create_info.pCode = buffer.data();
+
+    VkShaderModule shader_module;
+    if (vkCreateShaderModule(m_device, &create_info, nullptr, &shader_module) != VK_SUCCESS) {
+        return false;
+    }
+    *out_shader_module = shader_module;
+    return true;
+
+
 }
 
 void Engine::init_glfw() {

@@ -27,6 +27,8 @@ public:
     void draw();
     void cleanup();
 
+    bool load_shader_module(const char* file_path, VkShaderModule* out_shader_module);
+
     VkInstance m_instance;
     VkDebugUtilsMessengerEXT m_debug_messenger;
 
