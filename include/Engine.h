@@ -15,7 +15,7 @@ class Engine {
 public:
 
     bool m_is_initialized = false;
-    bool m_frame_count = 0;
+    uint32_t m_frame_count = 0;
 
     VkExtent2D m_window_extent = { 1280, 720 };
 
@@ -26,12 +26,6 @@ public:
     void run();
     void draw();
     void cleanup();
-    static void print_system_info();
-
-    vkb::Instance m_vkb_instance;
-    vkb::PhysicalDevice m_vkb_physical_device;
-    vkb::Device m_vkb_device;
-    vkb::Swapchain m_vkb_swapchain;
 
     VkInstance m_instance;
     VkDebugUtilsMessengerEXT m_debug_messenger;
@@ -51,11 +45,20 @@ public:
     VkCommandPool m_main_command_pool;
     VkCommandBuffer m_main_command_buffer;
 
+    VkRenderingInfo m_render_info;
+    VkSemaphore m_present_semaphore;
+    VkSemaphore m_render_semaphore;
+    VkFence m_render_fence;
+
 private:
+    // We need it for swapchain creation
+    vkb::Device m_vkb_device;
+
     void init_glfw();
     void init_vulkan();
     void init_swapchain();
     void init_commands();
+    void init_sync_structures();
 };
 
 
