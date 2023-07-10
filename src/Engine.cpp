@@ -196,7 +196,7 @@ void Engine::draw() {
     m_frame_count++;
 
     // Info
-    glfwSetWindowTitle(m_window, ("VulkanEngine - Frame count: " + std::to_string(m_frame_count)).c_str());
+    // glfwSetWindowTitle(m_window, ("VulkanEngine - Frame count: " + std::to_string(m_frame_count)).c_str());
 }
 
 // Small helper, this will be used once, and only here so no need to put it somewhere else
@@ -266,8 +266,6 @@ bool Engine::load_shader_module(const char *file_path, VkShaderModule *out_shade
     }
     *out_shader_module = shader_module;
     return true;
-
-
 }
 
 void Engine::init_glfw() {
