@@ -4,8 +4,6 @@
 
 #include <Engine.h>
 
-#include <Initializers.h>
-
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -31,6 +29,7 @@ void Engine::init() {
     init_swapchain();
     init_commands();
     init_sync_structures();
+    init_base_pipelines();
 
     m_is_initialized = true;
 }
@@ -382,4 +381,22 @@ void Engine::init_sync_structures() {
     };
     VK_CHECK(vkCreateSemaphore(m_device, &semaphore_create_info, nullptr, &m_present_semaphore))
     VK_CHECK(vkCreateSemaphore(m_device, &semaphore_create_info, nullptr, &m_render_semaphore))
+}
+
+void Engine::init_base_pipelines() {
+    VkShaderModule triangleFragShader;
+    if (!load_shader_module("triangle.frag.spv", &triangleFragShader)) {
+        std::cout << "Error when building the triangle fragment shader module" << std::endl;
+        abort();
+    } else {
+        std::cout << "Triangle fragment shader successfully loaded" << std::endl;
+    }
+
+    VkShaderModule triangleVertexShader;
+    if (!load_shader_module("triangle.vert.spv", &triangleVertexShader)) {
+        std::cout << "Error when building the triangle vertex shader module" << std::endl;
+        abort();
+    } else {
+        std::cout << "Triangle vertex shader successfully loaded" << std::endl;
+    }
 }

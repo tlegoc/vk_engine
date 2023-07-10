@@ -61,6 +61,7 @@ private:
     void init_swapchain();
     void init_commands();
     void init_sync_structures();
+    void init_base_pipelines();
 };
 
 
