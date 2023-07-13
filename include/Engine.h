@@ -6,6 +6,8 @@
 #define VK_ENGINE_ENGINE_H
 
 #include <Types.h>
+#include <DeletionQueue.h>
+
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
 
@@ -25,9 +27,13 @@ public:
     void init();
     void run();
     void draw();
+    void render_commands();
     void cleanup();
 
     bool load_shader_module(const char* file_path, VkShaderModule* out_shader_module);
+
+    DeletionQueue m_main_deletion_queue;
+    DeletionQueue m_per_frame_deletion_queue;
 
     VkInstance m_instance;
     VkDebugUtilsMessengerEXT m_debug_messenger;
@@ -51,6 +57,9 @@ public:
     VkSemaphore m_present_semaphore;
     VkSemaphore m_render_semaphore;
     VkFence m_render_fence;
+
+    VkPipelineLayout m_triangle_pipeline_layout;
+    VkPipeline m_triangle_pipeline;
 
 private:
     // We need it for swapchain creation

@@ -4,6 +4,9 @@
 
 #include <Engine.h>
 
+#include <Initializers.h>
+#include <PipelineBuilder.h>
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -40,6 +43,7 @@ void Engine::run() {
         glfwPollEvents();
 
         draw();
+        m_per_frame_deletion_queue.flush();
     }
 }
 
@@ -105,7 +109,7 @@ void Engine::draw() {
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
             .clearValue = VkClearValue{
-                    .color = {0, 0, flash, 1}
+                    .color = {flash * .2f, flash, flash * .18f, 1}
             },
     };
 
@@ -125,7 +129,7 @@ void Engine::draw() {
     // above
     vkCmdBeginRendering(m_main_command_buffer, &render_info);
 
-    // Draw calls
+    render_commands();
 
     vkCmdEndRendering(m_main_command_buffer);
 
@@ -198,6 +202,11 @@ void Engine::draw() {
     // glfwSetWindowTitle(m_window, ("VulkanEngine - Frame count: " + std::to_string(m_frame_count)).c_str());
 }
 
+void Engine::render_commands() {
+    vkCmdBindPipeline(m_main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_triangle_pipeline);
+    vkCmdDraw(m_main_command_buffer, 3, 1, 0, 0);
+}
+
 // Small helper, this will be used once, and only here so no need to put it somewhere else
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger,
                                    const VkAllocationCallbacks *pAllocator) {
@@ -215,17 +224,7 @@ void Engine::cleanup() {
     if (m_is_initialized) {
         // Wait for render fence
         VK_CHECK(vkWaitForFences(m_device, 1, &m_render_fence, true, 1000000000))
-        vkDestroySemaphore(m_device, m_render_semaphore, nullptr);
-        vkDestroySemaphore(m_device, m_present_semaphore, nullptr);
-        vkDestroyFence(m_device, m_render_fence, nullptr);
-
-        vkDestroyCommandPool(m_device, m_main_command_pool, nullptr);
-
-        vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
-
-        for (auto &i: m_swapchain_images_view) {
-            vkDestroyImageView(m_device, i, nullptr);
-        }
+        m_main_deletion_queue.flush();
 
         vkDestroyDevice(m_device, nullptr);
         vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -344,6 +343,17 @@ void Engine::init_swapchain() {
     m_swapchain_images_view = vkb_swapchain.get_image_views().value();
 
     m_swapchain_image_format = vkb_swapchain.image_format;
+
+
+    for (auto &i: m_swapchain_images_view) {
+        m_main_deletion_queue.push_function([=, this]() {
+            vkDestroyImageView(m_device, i, nullptr);
+        });
+    }
+
+    m_main_deletion_queue.push_function([=, this]() {
+        vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+    });
 }
 
 void Engine::init_commands() {
@@ -363,6 +373,10 @@ void Engine::init_commands() {
             .commandBufferCount = 1
     };
     VK_CHECK(vkAllocateCommandBuffers(m_device, &command_buffer_allocate_info, &m_main_command_buffer))
+
+    m_main_deletion_queue.push_function([=, this]() {
+        vkDestroyCommandPool(m_device, m_main_command_pool, nullptr);
+    });
 }
 
 void Engine::init_sync_structures() {
@@ -372,7 +386,11 @@ void Engine::init_sync_structures() {
             //we want to create the fence with the Create Signaled flag, so we can wait on it before using it on a GPU command (for the first frame)
             .flags = VK_FENCE_CREATE_SIGNALED_BIT
     };
-    VK_CHECK(vkCreateFence(m_device, &fence_create_info, nullptr, &m_render_fence));
+    VK_CHECK(vkCreateFence(m_device, &fence_create_info, nullptr, &m_render_fence))
+
+    m_main_deletion_queue.push_function([=, this]() {
+        vkDestroyFence(m_device, m_render_fence, nullptr);
+    });
 
     VkSemaphoreCreateInfo semaphore_create_info = {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -381,6 +399,13 @@ void Engine::init_sync_structures() {
     };
     VK_CHECK(vkCreateSemaphore(m_device, &semaphore_create_info, nullptr, &m_present_semaphore))
     VK_CHECK(vkCreateSemaphore(m_device, &semaphore_create_info, nullptr, &m_render_semaphore))
+
+    m_main_deletion_queue.push_function([=, this]() {
+        vkDestroySemaphore(m_device, m_render_semaphore, nullptr);
+    });
+    m_main_deletion_queue.push_function([=, this]() {
+        vkDestroySemaphore(m_device, m_present_semaphore, nullptr);
+    });
 }
 
 void Engine::init_base_pipelines() {
@@ -399,4 +424,51 @@ void Engine::init_base_pipelines() {
     } else {
         std::cout << "Triangle vertex shader successfully loaded" << std::endl;
     }
+
+    VkPipelineLayoutCreateInfo pipeline_layout_info = Initializers::pipeline_layout_create_info();
+
+    VK_CHECK(vkCreatePipelineLayout(m_device, &pipeline_layout_info, nullptr, &m_triangle_pipeline_layout));
+
+    PipelineBuilder pipelineBuilder;
+
+    pipelineBuilder.m_shader_stages.push_back(
+            Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, triangleVertexShader));
+
+    pipelineBuilder.m_shader_stages.push_back(
+            Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangleFragShader));
+
+
+    //vertex input controls how to read vertices from vertex buffers.
+    pipelineBuilder.m_vertex_input_info = Initializers::vertex_input_state_create_info();
+
+    pipelineBuilder.m_input_assembly = Initializers::input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+
+    pipelineBuilder.m_viewport.x = 0.0f;
+    pipelineBuilder.m_viewport.y = 0.0f;
+    pipelineBuilder.m_viewport.width = (float) m_window_extent.width;
+    pipelineBuilder.m_viewport.height = (float) m_window_extent.height;
+    pipelineBuilder.m_viewport.minDepth = 0.0f;
+    pipelineBuilder.m_viewport.maxDepth = 1.0f;
+
+    pipelineBuilder.m_scissor.offset = {0, 0};
+    pipelineBuilder.m_scissor.extent = m_window_extent;
+
+    pipelineBuilder.m_rasterizer = Initializers::rasterization_state_create_info(VK_POLYGON_MODE_FILL);
+
+    pipelineBuilder.m_multisampling = Initializers::multisampling_state_create_info();
+
+    //a single blend attachment with no blending and writing to RGBA
+    pipelineBuilder.m_color_blend_attachment = Initializers::color_blend_attachment_state();
+
+    pipelineBuilder.m_pipeline_layout = m_triangle_pipeline_layout;
+
+    m_triangle_pipeline = pipelineBuilder.build_pipeline(m_device);
+
+    vkDestroyShaderModule(m_device, triangleFragShader, nullptr);
+    vkDestroyShaderModule(m_device, triangleVertexShader, nullptr);
+
+    m_main_deletion_queue.push_function([=, this]() {
+        vkDestroyPipeline(m_device, m_triangle_pipeline, nullptr);
+        vkDestroyPipelineLayout(m_device, m_triangle_pipeline_layout, nullptr);
+    });
 }

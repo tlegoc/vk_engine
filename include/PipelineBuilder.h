@@ -23,7 +23,7 @@ public:
     VkPipelineMultisampleStateCreateInfo m_multisampling;
     VkPipelineLayout m_pipeline_layout;
 
-    VkPipeline build_pipeline(VkDevice device, VkRenderPass pass);
+    VkPipeline build_pipeline(VkDevice device);
 };
 
 
