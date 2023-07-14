@@ -14,7 +14,6 @@
 #include <string>
 #include <glm/glm.hpp>
 
-using namespace std;
 #define VK_CHECK(x)                                                     \
         {                                                               \
         VkResult err = x;                                               \
@@ -54,7 +53,7 @@ void Engine::draw() {
     VK_CHECK(vkResetFences(m_device, 1, &m_render_fence))
 
     // Used in debug
-    float flash = abs(sin(m_frame_count / 120.f));
+    float flash = glm::abs(glm::sin(m_frame_count / 120.f));
 
     // Will call present semaphore when done.
     uint32_t swapchain_image_index;
