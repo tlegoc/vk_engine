@@ -10,6 +10,7 @@
 
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
+#include <vk_mem_alloc.h>
 
 #include <vector>
 
@@ -34,6 +35,8 @@ public:
 
     DeletionQueue m_main_deletion_queue;
     DeletionQueue m_per_frame_deletion_queue;
+
+    VmaAllocator m_allocator;
 
     VkInstance m_instance;
     VkDebugUtilsMessengerEXT m_debug_messenger;

@@ -6,6 +6,8 @@
 
 #include <Initializers.h>
 #include <PipelineBuilder.h>
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
 
 #include <iostream>
 #include <fstream>
@@ -325,6 +327,15 @@ void Engine::init_vulkan() {
 
     m_graphics_queue = m_vkb_device.get_queue(vkb::QueueType::graphics).value();
     m_graphics_queue_family = m_vkb_device.get_queue_index(vkb::QueueType::graphics).value();
+
+
+    VmaAllocatorCreateInfo allocatorInfo = {
+            .physicalDevice = m_physical_device,
+            .device = m_device,
+            .instance = m_instance
+    };
+
+    vmaCreateAllocator(&allocatorInfo, &m_allocator);
 }
 
 void Engine::init_swapchain() {
