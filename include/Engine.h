@@ -7,6 +7,7 @@
 
 #include <Types.h>
 #include <DeletionQueue.h>
+#include <Mesh.h>
 
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
@@ -64,6 +65,10 @@ public:
     VkPipelineLayout m_triangle_pipeline_layout;
     VkPipeline m_triangle_pipeline;
 
+    // Debug and test
+    VkPipeline m_debug_mesh_pipeline;
+    Mesh m_debug_triangle_mesh;
+
 private:
     // We need it for swapchain creation
     vkb::Device m_vkb_device;
@@ -74,6 +79,8 @@ private:
     void init_commands();
     void init_sync_structures();
     void init_base_pipelines();
+    void init_debug_meshes();
+    void upload_mesh(Mesh& mesh);
 };
 
 

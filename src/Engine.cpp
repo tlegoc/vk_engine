@@ -6,7 +6,9 @@
 
 #include <Initializers.h>
 #include <PipelineBuilder.h>
+
 #define VMA_IMPLEMENTATION
+
 #include <vk_mem_alloc.h>
 
 #include <iostream>
@@ -34,6 +36,7 @@ void Engine::init() {
     init_commands();
     init_sync_structures();
     init_base_pipelines();
+    init_debug_meshes();
 
     m_is_initialized = true;
 }
@@ -43,15 +46,15 @@ void Engine::run() {
     while (!glfwWindowShouldClose(m_window) && !quit) {
         glfwPollEvents();
 
-        draw();
+        VK_CHECK(vkWaitForFences(m_device, 1, &m_render_fence, true, 1000000000))
+        VK_CHECK(vkResetFences(m_device, 1, &m_render_fence))
+        // We need to flush after vulkan has finished working.
         m_per_frame_deletion_queue.flush();
+        draw();
     }
 }
 
 void Engine::draw() {
-    VK_CHECK(vkWaitForFences(m_device, 1, &m_render_fence, true, 1000000000))
-    VK_CHECK(vkResetFences(m_device, 1, &m_render_fence))
-
     // Used in debug
     float flash = glm::abs(glm::sin(m_frame_count / 120.f));
 
@@ -204,8 +207,11 @@ void Engine::draw() {
 }
 
 void Engine::render_commands() {
-    vkCmdBindPipeline(m_main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_triangle_pipeline);
-    vkCmdDraw(m_main_command_buffer, 3, 1, 0, 0);
+    vkCmdBindPipeline(m_main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_debug_mesh_pipeline);
+
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(m_main_command_buffer, 0, 1, &m_debug_triangle_mesh.m_vertex_buffer.m_buffer, &offset);
+    vkCmdDraw(m_main_command_buffer, m_debug_triangle_mesh.m_vertices.size(), 1, 0, 0);
 }
 
 // Small helper, this will be used once, and only here so no need to put it somewhere else
@@ -226,6 +232,8 @@ void Engine::cleanup() {
         // Wait for render fence
         VK_CHECK(vkWaitForFences(m_device, 1, &m_render_fence, true, 1000000000))
         m_main_deletion_queue.flush();
+
+        vmaDestroyAllocator(m_allocator);
 
         vkDestroyDevice(m_device, nullptr);
         vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
@@ -419,66 +427,139 @@ void Engine::init_sync_structures() {
 }
 
 void Engine::init_base_pipelines() {
-    VkShaderModule triangleFragShader;
-    if (!load_shader_module("triangle.frag.spv", &triangleFragShader)) {
+    VkShaderModule triangle_frag_shader;
+    if (!load_shader_module("triangle.frag.spv", &triangle_frag_shader)) {
         std::cout << "Error when building the triangle fragment shader module" << std::endl;
         abort();
-    } else {
-        std::cout << "Triangle fragment shader successfully loaded" << std::endl;
     }
 
-    VkShaderModule triangleVertexShader;
-    if (!load_shader_module("triangle.vert.spv", &triangleVertexShader)) {
+    VkShaderModule triangle_vertex_shader;
+    if (!load_shader_module("triangle.vert.spv", &triangle_vertex_shader)) {
         std::cout << "Error when building the triangle vertex shader module" << std::endl;
         abort();
-    } else {
-        std::cout << "Triangle vertex shader successfully loaded" << std::endl;
+    }
+
+    VkShaderModule base_trimesh_vertex_shader;
+    if (!load_shader_module("base_trimesh.vert.spv", &base_trimesh_vertex_shader)) {
+        std::cout << "Error when building the base trimesh vertex shader module" << std::endl;
+        abort();
+    }
+
+    VkShaderModule base_vertex_color_frag_shader;
+    if (!load_shader_module("base_vertex_color.frag.spv", &base_vertex_color_frag_shader)) {
+        std::cout << "Error when building the base vertex color shader module" << std::endl;
+        abort();
     }
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = Initializers::pipeline_layout_create_info();
 
     VK_CHECK(vkCreatePipelineLayout(m_device, &pipeline_layout_info, nullptr, &m_triangle_pipeline_layout));
 
-    PipelineBuilder pipelineBuilder;
+    PipelineBuilder pipeline_builder;
 
-    pipelineBuilder.m_shader_stages.push_back(
-            Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, triangleVertexShader));
+    pipeline_builder.m_shader_stages.push_back(
+            Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, triangle_vertex_shader));
 
-    pipelineBuilder.m_shader_stages.push_back(
-            Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangleFragShader));
+    pipeline_builder.m_shader_stages.push_back(
+            Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangle_frag_shader));
 
 
     //vertex input controls how to read vertices from vertex buffers.
-    pipelineBuilder.m_vertex_input_info = Initializers::vertex_input_state_create_info();
+    pipeline_builder.m_vertex_input_info = Initializers::vertex_input_state_create_info();
 
-    pipelineBuilder.m_input_assembly = Initializers::input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    pipeline_builder.m_input_assembly = Initializers::input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
-    pipelineBuilder.m_viewport.x = 0.0f;
-    pipelineBuilder.m_viewport.y = 0.0f;
-    pipelineBuilder.m_viewport.width = (float) m_window_extent.width;
-    pipelineBuilder.m_viewport.height = (float) m_window_extent.height;
-    pipelineBuilder.m_viewport.minDepth = 0.0f;
-    pipelineBuilder.m_viewport.maxDepth = 1.0f;
+    pipeline_builder.m_viewport.x = 0.0f;
+    pipeline_builder.m_viewport.y = 0.0f;
+    pipeline_builder.m_viewport.width = (float) m_window_extent.width;
+    pipeline_builder.m_viewport.height = (float) m_window_extent.height;
+    pipeline_builder.m_viewport.minDepth = 0.0f;
+    pipeline_builder.m_viewport.maxDepth = 1.0f;
 
-    pipelineBuilder.m_scissor.offset = {0, 0};
-    pipelineBuilder.m_scissor.extent = m_window_extent;
+    pipeline_builder.m_scissor.offset = {0, 0};
+    pipeline_builder.m_scissor.extent = m_window_extent;
 
-    pipelineBuilder.m_rasterizer = Initializers::rasterization_state_create_info(VK_POLYGON_MODE_FILL);
+    pipeline_builder.m_rasterizer = Initializers::rasterization_state_create_info(VK_POLYGON_MODE_FILL);
 
-    pipelineBuilder.m_multisampling = Initializers::multisampling_state_create_info();
+    pipeline_builder.m_multisampling = Initializers::multisampling_state_create_info();
 
     //a single blend attachment with no blending and writing to RGBA
-    pipelineBuilder.m_color_blend_attachment = Initializers::color_blend_attachment_state();
+    pipeline_builder.m_color_blend_attachment = Initializers::color_blend_attachment_state();
 
-    pipelineBuilder.m_pipeline_layout = m_triangle_pipeline_layout;
+    pipeline_builder.m_pipeline_layout = m_triangle_pipeline_layout;
 
-    m_triangle_pipeline = pipelineBuilder.build_pipeline(m_device);
+    m_triangle_pipeline = pipeline_builder.build_pipeline(m_device);
 
-    vkDestroyShaderModule(m_device, triangleFragShader, nullptr);
-    vkDestroyShaderModule(m_device, triangleVertexShader, nullptr);
+    pipeline_builder.m_shader_stages.clear();
+
+    VertexInputDescription vertex_description = Vertex::get_vertex_description();
+
+    //connect the pipeline builder vertex input info to the one we get from Vertex
+    pipeline_builder.m_vertex_input_info.pVertexAttributeDescriptions = vertex_description.attributes.data();
+    pipeline_builder.m_vertex_input_info.vertexAttributeDescriptionCount = vertex_description.attributes.size();
+
+    pipeline_builder.m_vertex_input_info.pVertexBindingDescriptions = vertex_description.bindings.data();
+    pipeline_builder.m_vertex_input_info.vertexBindingDescriptionCount = vertex_description.bindings.size();
+
+    pipeline_builder.m_shader_stages.push_back(
+            Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, base_trimesh_vertex_shader));
+
+    pipeline_builder.m_shader_stages.push_back(
+            Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, base_vertex_color_frag_shader));
+
+    m_debug_mesh_pipeline = pipeline_builder.build_pipeline(m_device);
+
+    vkDestroyShaderModule(m_device, triangle_frag_shader, nullptr);
+    vkDestroyShaderModule(m_device, triangle_vertex_shader, nullptr);
+    vkDestroyShaderModule(m_device, base_trimesh_vertex_shader, nullptr);
+    vkDestroyShaderModule(m_device, base_vertex_color_frag_shader, nullptr);
 
     m_main_deletion_queue.push_function([=, this]() {
         vkDestroyPipeline(m_device, m_triangle_pipeline, nullptr);
+        vkDestroyPipeline(m_device, m_debug_mesh_pipeline, nullptr);
         vkDestroyPipelineLayout(m_device, m_triangle_pipeline_layout, nullptr);
     });
+}
+
+void Engine::init_debug_meshes() {
+    m_debug_triangle_mesh.m_vertices.resize(3);
+
+    m_debug_triangle_mesh.m_vertices[0].position = {1.f, 1.f, 0.f};
+    m_debug_triangle_mesh.m_vertices[1].position = {-1.f, 1.f, 0.f};
+    m_debug_triangle_mesh.m_vertices[2].position = {0.f, -1.f, 0.f};
+
+    m_debug_triangle_mesh.m_vertices[0].color = {0.f, 1.f, 0.f};
+    m_debug_triangle_mesh.m_vertices[1].color = {1.f, 0.f, 0.f};
+    m_debug_triangle_mesh.m_vertices[2].color = {0.f, 0.f, 1.f};
+
+    upload_mesh(m_debug_triangle_mesh);
+}
+
+void Engine::upload_mesh(Mesh &mesh) {
+    VkBufferCreateInfo buffer_info = {};
+    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_info.size = mesh.m_vertices.size() * sizeof(Vertex);
+    buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+
+    VmaAllocationCreateInfo vma_alloc_info = {};
+    vma_alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
+    VK_CHECK(vmaCreateBuffer(m_allocator, &buffer_info, &vma_alloc_info,
+                             &mesh.m_vertex_buffer.m_buffer,
+                             &mesh.m_vertex_buffer.m_allocation,
+                             nullptr));
+
+    m_main_deletion_queue.push_function([=]() {
+
+        vmaDestroyBuffer(m_allocator, mesh.m_vertex_buffer.m_buffer, mesh.m_vertex_buffer.m_allocation);
+    });
+
+    // Copy the data
+    void *data;
+    vmaMapMemory(m_allocator, mesh.m_vertex_buffer.m_allocation, &data);
+
+    memcpy(data, mesh.m_vertices.data(), mesh.m_vertices.size() * sizeof(Vertex));
+
+    vmaUnmapMemory(m_allocator, mesh.m_vertex_buffer.m_allocation);
 }
