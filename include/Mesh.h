@@ -7,10 +7,9 @@
 
 #include <Types.h>
 #include <vector>
-#include <glm/vec3.hpp>
+#include <glm/glm.hpp>
 
 struct VertexInputDescription {
-
     std::vector<VkVertexInputBindingDescription> bindings;
     std::vector<VkVertexInputAttributeDescription> attributes;
 
@@ -18,12 +17,16 @@ struct VertexInputDescription {
 };
 
 struct Vertex {
-
     glm::vec3 position;
     glm::vec3 normal;
     glm::vec3 color;
 
     static VertexInputDescription get_vertex_description();
+};
+
+struct MeshPushConstants {
+    glm::vec4 data;
+    glm::mat4 render_matrix;
 };
 
 struct Mesh {

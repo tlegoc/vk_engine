@@ -66,6 +66,7 @@ public:
     VkPipeline m_triangle_pipeline;
 
     // Debug and test
+    VkPipelineLayout m_debug_mesh_pipeline_layout;
     VkPipeline m_debug_mesh_pipeline;
     Mesh m_debug_triangle_mesh;
 
