@@ -37,7 +37,9 @@ void Engine::init() {
     init_commands();
     init_sync_structures();
     init_base_pipelines();
+#ifndef NDEBUG
     init_debug_meshes();
+#endif
 
     m_is_initialized = true;
 }
@@ -118,6 +120,17 @@ void Engine::draw() {
             },
     };
 
+    const VkRenderingAttachmentInfo depth_attachment_info{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+            .imageView = m_depth_image_view,
+            .imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue = VkClearValue{
+                    .depthStencil = {1, 0}
+            },
+    };
+
     // Don't forget to include all color attachment.
     // You can select the desired output image in your shader by doing
     // layout(location = COLOR_ATTACHMENT INDEX) vecX variable_name;
@@ -127,6 +140,7 @@ void Engine::draw() {
             .layerCount = 1,
             .colorAttachmentCount = 1,
             .pColorAttachments = &color_attachment_info,
+            .pDepthAttachment = &depth_attachment_info
     };
 
     // We make use of dynamic_rendering. This allows us to forget about renderpasses and
@@ -134,7 +148,7 @@ void Engine::draw() {
     // above
     vkCmdBeginRendering(m_main_command_buffer, &render_info);
 
-    render_commands();
+    cmd_render_commands();
 
     vkCmdEndRendering(m_main_command_buffer);
 
@@ -207,11 +221,8 @@ void Engine::draw() {
     // glfwSetWindowTitle(m_window, ("VulkanEngine - Frame count: " + std::to_string(m_frame_count)).c_str());
 }
 
-void Engine::render_commands() {
+void Engine::cmd_render_commands() {
     vkCmdBindPipeline(m_main_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_debug_mesh_pipeline);
-
-    VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(m_main_command_buffer, 0, 1, &m_debug_triangle_mesh.m_vertex_buffer.m_buffer, &offset);
 
     // Will be moved somewhere else in the end
     {
@@ -229,15 +240,18 @@ void Engine::render_commands() {
         //calculate final mesh matrix
         glm::mat4 mesh_matrix = projection * view * model;
 
-        MeshPushConstants constants;
+        MeshPushConstants constants{};
         constants.render_matrix = mesh_matrix;
 
         //upload the matrix to the GPU via push constants
         vkCmdPushConstants(m_main_command_buffer, m_debug_mesh_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
                            sizeof(MeshPushConstants), &constants);
     }
-    
-    vkCmdDraw(m_main_command_buffer, m_debug_triangle_mesh.m_vertices.size(), 1, 0, 0);
+
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(m_main_command_buffer, 0, 1, &m_debug_monkey_mesh.m_vertex_buffer.m_buffer, &offset);
+
+    vkCmdDraw(m_main_command_buffer, m_debug_monkey_mesh.m_vertices.size(), 1, 0, 0);
 }
 
 // Small helper, this will be used once, and only here so no need to put it somewhere else
@@ -270,7 +284,7 @@ void Engine::cleanup() {
     }
 }
 
-bool Engine::load_shader_module(const char *file_path, VkShaderModule *out_shader_module) {
+bool Engine::load_shader_module(const char *file_path, VkShaderModule *out_shader_module) const {
     std::ifstream file(file_path, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
@@ -398,6 +412,36 @@ void Engine::init_swapchain() {
     m_main_deletion_queue.push_function([=, this]() {
         vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
     });
+
+    // Depth texture
+    VkExtent3D depth_image_extent = {
+            m_window_extent.width,
+            m_window_extent.height,
+            1
+    };
+
+    m_depth_format = VK_FORMAT_D32_SFLOAT;
+
+    VkImageCreateInfo dimg_info = Initializers::image_create_info(m_depth_format,
+                                                                  VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                                  depth_image_extent);
+
+    VmaAllocationCreateInfo dimg_allocinfo = {};
+    dimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    dimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    vmaCreateImage(m_allocator, &dimg_info, &dimg_allocinfo, &m_depth_image.m_image, &m_depth_image.m_allocation,
+                   nullptr);
+
+    VkImageViewCreateInfo dview_info = Initializers::imageview_create_info(m_depth_format, m_depth_image.m_image,
+                                                                           VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    VK_CHECK(vkCreateImageView(m_device, &dview_info, nullptr, &m_depth_image_view));
+
+    m_main_deletion_queue.push_function([=, this]() {
+        vkDestroyImageView(m_device, m_depth_image_view, nullptr);
+        vmaDestroyImage(m_allocator, m_depth_image.m_image, m_depth_image.m_allocation);
+    });
 }
 
 void Engine::init_commands() {
@@ -493,31 +537,17 @@ void Engine::init_base_pipelines() {
 
     PipelineBuilder pipeline_builder;
 
+    pipeline_builder.setup_default(m_window_extent);
+
+    pipeline_builder.m_depth_stencil_format = m_depth_format;
+    pipeline_builder.m_depth_stencil = Initializers::depth_stencil_create_info(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+
     pipeline_builder.m_shader_stages.push_back(
             Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, triangle_vertex_shader));
 
     pipeline_builder.m_shader_stages.push_back(
             Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangle_frag_shader));
-
-
-    //vertex input controls how to read vertices from vertex buffers.
-    pipeline_builder.m_vertex_input_info = Initializers::vertex_input_state_create_info();
-
-    pipeline_builder.m_input_assembly = Initializers::input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-
-    pipeline_builder.m_viewport.x = 0.0f;
-    pipeline_builder.m_viewport.y = 0.0f;
-    pipeline_builder.m_viewport.width = (float) m_window_extent.width;
-    pipeline_builder.m_viewport.height = (float) m_window_extent.height;
-    pipeline_builder.m_viewport.minDepth = 0.0f;
-    pipeline_builder.m_viewport.maxDepth = 1.0f;
-
-    pipeline_builder.m_scissor.offset = {0, 0};
-    pipeline_builder.m_scissor.extent = m_window_extent;
-
-    pipeline_builder.m_rasterizer = Initializers::rasterization_state_create_info(VK_POLYGON_MODE_FILL);
-
-    pipeline_builder.m_multisampling = Initializers::multisampling_state_create_info();
 
     //a single blend attachment with no blending and writing to RGBA
     pipeline_builder.m_color_blend_attachment = Initializers::color_blend_attachment_state();
@@ -546,7 +576,8 @@ void Engine::init_base_pipelines() {
             Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, base_trimesh_vertex_shader));
 
     pipeline_builder.m_shader_stages.push_back(
-            Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, base_vertex_color_frag_shader));
+            Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                            base_vertex_color_frag_shader));
 
     m_debug_mesh_pipeline = pipeline_builder.build_pipeline(m_device);
 
@@ -574,15 +605,18 @@ void Engine::init_debug_meshes() {
     m_debug_triangle_mesh.m_vertices[1].color = {1.f, 0.f, 0.f};
     m_debug_triangle_mesh.m_vertices[2].color = {0.f, 0.f, 1.f};
 
+    m_debug_monkey_mesh.load_from_obj("./assets/monkey.obj");
+
     upload_mesh(m_debug_triangle_mesh);
+    upload_mesh(m_debug_monkey_mesh);
 }
 
 void Engine::upload_mesh(Mesh &mesh) {
-    VkBufferCreateInfo buffer_info = {};
-    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = mesh.m_vertices.size() * sizeof(Vertex);
-    buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-
+    VkBufferCreateInfo buffer_info = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = mesh.m_vertices.size() * sizeof(Vertex),
+            .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+    };
 
     VmaAllocationCreateInfo vma_alloc_info = {};
     vma_alloc_info.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
@@ -592,8 +626,7 @@ void Engine::upload_mesh(Mesh &mesh) {
                              &mesh.m_vertex_buffer.m_allocation,
                              nullptr));
 
-    m_main_deletion_queue.push_function([=]() {
-
+    m_main_deletion_queue.push_function([=, this]() {
         vmaDestroyBuffer(m_allocator, mesh.m_vertex_buffer.m_buffer, mesh.m_vertex_buffer.m_allocation);
     });
 

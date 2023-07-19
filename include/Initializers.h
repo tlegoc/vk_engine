@@ -9,7 +9,8 @@
 
 namespace Initializers {
     VkPipelineShaderStageCreateInfo
-    pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shader_module, const char* entry_point = "main");
+    pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shader_module,
+                                      const char *entry_point = "main");
 
     VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info();
 
@@ -22,6 +23,13 @@ namespace Initializers {
     VkPipelineColorBlendAttachmentState color_blend_attachment_state();
 
     VkPipelineLayoutCreateInfo pipeline_layout_create_info();
+
+    VkImageCreateInfo image_create_info(VkFormat format, VkImageUsageFlags usage_flags, VkExtent3D extent);
+
+    VkImageViewCreateInfo imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspect_flags);
+
+    VkPipelineDepthStencilStateCreateInfo
+    depth_stencil_create_info(bool depth_test, bool depth_write, VkCompareOp compare_op);
 }
 
 

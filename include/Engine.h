@@ -5,9 +5,9 @@
 #ifndef VK_ENGINE_ENGINE_H
 #define VK_ENGINE_ENGINE_H
 
-#include <Types.h>
 #include <DeletionQueue.h>
 #include <Mesh.h>
+#include <VulkanHelpers.h>
 
 #include <GLFW/glfw3.h>
 #include <VkBootstrap.h>
@@ -29,21 +29,28 @@ public:
     void init();
     void run();
     void draw();
-    void render_commands();
+    void cmd_render_commands();
     void cleanup();
 
-    bool load_shader_module(const char* file_path, VkShaderModule* out_shader_module);
+    bool load_shader_module(const char* file_path, VkShaderModule* out_shader_module) const;
+    void upload_mesh(Mesh& mesh);
 
+    // Resource management
     DeletionQueue m_main_deletion_queue;
     DeletionQueue m_per_frame_deletion_queue;
 
+    // Memory
     VmaAllocator m_allocator;
 
+    // Global Vulkan object
     VkInstance m_instance;
     VkDebugUtilsMessengerEXT m_debug_messenger;
 
     VkPhysicalDevice m_physical_device;
     VkDevice m_device;
+
+    // We need it for swapchain creation
+    vkb::Device m_vkb_device;
 
     VkSwapchainKHR m_swapchain;
     VkFormat m_swapchain_image_format;
@@ -62,18 +69,21 @@ public:
     VkSemaphore m_render_semaphore;
     VkFence m_render_fence;
 
+    VkImageView m_depth_image_view;
+    AllocatedImage m_depth_image;
+    VkFormat m_depth_format;
+
+    // Debug and tests pipeline, meshes, etc
     VkPipelineLayout m_triangle_pipeline_layout;
     VkPipeline m_triangle_pipeline;
 
-    // Debug and test
     VkPipelineLayout m_debug_mesh_pipeline_layout;
     VkPipeline m_debug_mesh_pipeline;
     Mesh m_debug_triangle_mesh;
+    Mesh m_debug_monkey_mesh;
+
 
 private:
-    // We need it for swapchain creation
-    vkb::Device m_vkb_device;
-
     void init_glfw();
     void init_vulkan();
     void init_swapchain();
@@ -81,7 +91,6 @@ private:
     void init_sync_structures();
     void init_base_pipelines();
     void init_debug_meshes();
-    void upload_mesh(Mesh& mesh);
 };
 
 

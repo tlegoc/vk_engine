@@ -5,7 +5,8 @@
 #ifndef VK_ENGINE_MESH_H
 #define VK_ENGINE_MESH_H
 
-#include <Types.h>
+#include <vulkan/vulkan.h>
+#include <VulkanHelpers.h>
 #include <vector>
 #include <glm/glm.hpp>
 
@@ -32,7 +33,9 @@ struct MeshPushConstants {
 struct Mesh {
     std::vector<Vertex> m_vertices;
 
-    Types::AllocatedBuffer m_vertex_buffer;
+    AllocatedBuffer m_vertex_buffer;
+
+    bool load_from_obj(const char* filename);
 };
 
 
