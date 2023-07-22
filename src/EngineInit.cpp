@@ -291,9 +291,6 @@ void Engine::init_base_pipelines() {
     pipeline_builder.m_shader_stages.push_back(
             Initializers::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangle_frag_shader));
 
-    //a single blend attachment with no blending and writing to RGBA
-    pipeline_builder.m_color_blend_attachment = Initializers::color_blend_attachment_state();
-
     pipeline_builder.m_pipeline_layout = m_triangle_pipeline_layout;
 
     m_triangle_pipeline = pipeline_builder.build_pipeline(m_device);

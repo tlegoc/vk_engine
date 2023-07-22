@@ -27,6 +27,8 @@ void PipelineBuilder::setup_default(VkExtent2D window_extent) {
 
     m_multisampling = Initializers::multisampling_state_create_info();
 
+    //a single blend attachment with no blending and writing to RGBA
+    m_color_blend_attachment.push_back(Initializers::color_blend_attachment_state());
 }
 
 VkPipeline PipelineBuilder::build_pipeline(VkDevice device) {
@@ -46,8 +48,8 @@ VkPipeline PipelineBuilder::build_pipeline(VkDevice device) {
             .pNext = nullptr,
             .logicOpEnable = VK_FALSE,
             .logicOp = VK_LOGIC_OP_COPY,
-            .attachmentCount = 1,
-            .pAttachments = &m_color_blend_attachment
+            .attachmentCount = static_cast<uint32_t>(m_color_blend_attachment.size()),
+            .pAttachments = m_color_blend_attachment.data()
     };
 
     // We ignore color attachment because it works without it.

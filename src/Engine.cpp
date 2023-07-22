@@ -15,18 +15,15 @@ void Engine::run() {
     bool quit = false;
     while (!glfwWindowShouldClose(m_window) && !quit) {
         glfwPollEvents();
-
-        VK_CHECK(vkWaitForFences(m_device, 1, &m_render_fence, true, 1000000000))
-        VK_CHECK(vkResetFences(m_device, 1, &m_render_fence))
-        // We need to flush after vulkan has finished working.
-        m_per_frame_deletion_queue.flush();
         draw();
     }
 }
 
 void Engine::draw() {
-    // Used in debug
-    float flash = glm::abs(glm::sin(m_frame_count / 120.f));
+    VK_CHECK(vkWaitForFences(m_device, 1, &m_render_fence, true, 1000000000))
+    VK_CHECK(vkResetFences(m_device, 1, &m_render_fence))
+    // We need to flush after vulkan has finished working.
+    m_per_frame_deletion_queue.flush();
 
     // Will call present semaphore when done.
     uint32_t swapchain_image_index;
@@ -83,7 +80,7 @@ void Engine::draw() {
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
             .clearValue = VkClearValue{
-                    .color = {flash * .2f, flash, flash * .18f, 1}
+                    .color = {0.f, 0.f, 0.f, 1}
             },
     };
 
