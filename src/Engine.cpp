@@ -5,10 +5,11 @@
 #include <Engine.h>
 
 #include <vulkan/vulkan.h>
+#include <glm/gtx/transform.hpp>
+
 #include <fstream>
 #include <string>
-#include <glm/glm.hpp>
-#include <glm/gtx/transform.hpp>
+#include <cstring>
 
 void Engine::run() {
     bool quit = false;

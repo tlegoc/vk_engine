@@ -5,18 +5,6 @@
 #ifndef VK_ENGINE_ENGINE_H
 #define VK_ENGINE_ENGINE_H
 
-
-#include <iostream>
-#define VK_CHECK(x)                                                     \
-        {                                                               \
-        VkResult err = x;                                               \
-        if (err)                                                        \
-        {                                                               \
-            std::cout << "Detected Vulkan error: " << err << std::endl; \
-            abort();                                                    \
-        }                                                               \
-        }
-
 #include <DeletionQueue.h>
 #include <Mesh.h>
 #include <Material.h>
