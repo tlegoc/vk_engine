@@ -5,8 +5,22 @@
 #ifndef VK_ENGINE_ENGINE_H
 #define VK_ENGINE_ENGINE_H
 
+
+#include <iostream>
+#define VK_CHECK(x)                                                     \
+        {                                                               \
+        VkResult err = x;                                               \
+        if (err)                                                        \
+        {                                                               \
+            std::cout << "Detected Vulkan error: " << err << std::endl; \
+            abort();                                                    \
+        }                                                               \
+        }
+
 #include <DeletionQueue.h>
 #include <Mesh.h>
+#include <Material.h>
+#include <RenderObject.h>
 #include <VulkanHelpers.h>
 
 #include <GLFW/glfw3.h>
@@ -14,6 +28,7 @@
 #include <vk_mem_alloc.h>
 
 #include <vector>
+#include <unordered_map>
 
 class Engine {
 public:
@@ -72,6 +87,20 @@ public:
     VkImageView m_depth_image_view;
     AllocatedImage m_depth_image;
     VkFormat m_depth_format;
+
+    // Rendering data
+    std::vector<RenderObject> m_renderables;
+
+    std::unordered_map<std::string, Material> m_materials;
+    std::unordered_map<std::string, Mesh> m_meshes;
+
+    Material* create_material(VkPipeline pipeline, VkPipelineLayout layout,const std::string& name);
+
+    Material* get_material(const std::string& name);
+
+    Mesh* get_mesh(const std::string& name);
+
+    void draw_objects(VkCommandBuffer cmd,RenderObject* first, int count);
 
     // Debug and tests pipeline, meshes, etc
     VkPipelineLayout m_triangle_pipeline_layout;
