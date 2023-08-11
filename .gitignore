@@ -32,3 +32,5 @@
 
 cmake-build-*/
 *.spv
+
+.idea/
